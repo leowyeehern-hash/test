@@ -7,6 +7,13 @@ app = Flask(__name__)
 # 初始化数据库
 create_table()
 
+@app.route('/')
+def home():
+    return jsonify({
+        "message": "StudyConnect API is running. Use /api/* endpoints.",
+        "available_routes": ["/api/match", "/api/add_user", "/api/send_message", "/api/get_messages", "/api/stats", "/api/confirm_match"]
+    })
+
 # --- 1. 你的核心算法 (保持原样放在这里) ---
 def calculate_match(s1, s2):
     # 使用 .get() 安全地获取数据，如果找不到，给一个默认值防止崩溃
