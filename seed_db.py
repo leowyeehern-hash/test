@@ -1,229 +1,313 @@
+"""
+seed_db.py — Seed StudyConnect database with Malaysian school subject users
+Run:  python seed_db.py
+"""
+
 import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+import sqlite3
 import os
-import json
-import random
-from werkzeug.security import generate_password_hash
 
-# Add backend directory to sys.path at index 0 to override root files
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
+DB_NAME = "students.db"
 
-from database import (
-    init_db,
-    create_user,
-    save_or_update_profile,
-    create_review,
-    send_message,
-    create_help_request
-)
+# ── Malaysian school subjects ──────────────────────────────────
+SUBJECTS = [
+    "Mathematics",
+    "Additional Mathematics",
+    "Bahasa Melayu",
+    "English Language",
+    "Physics",
+    "Chemistry",
+    "Biology",
+    "Sejarah (History)",
+    "Geografi (Geography)",
+    "Pendidikan Islam",
+    "Moral Education",
+    "Accounting",
+    "Economics",
+    "Computer Science",
+    "Science",
+    "Business Studies",
+    "Art (Seni Visual)",
+]
+
+# ── Seed users ─────────────────────────────────────────────────
+# Each entry: (name, subject, time_slots, advantage, weakness, intent, fee_pref, role, privacy_mode, rating, bio, contact_info)
+
+SEED_USERS = [
+    # ── Tutors (Providers) ──────────────────────────────────────
+    (
+        "Cikgu Azmi", "Mathematics", "MON_8AM,WED_8AM,FRI_8AM",
+        "Algebra, Calculus, Trigonometry", "Statistics",
+        "Provider", "Free Only", "Alumni (Mentor)", False, 4.8,
+        "Retired mathematics teacher with 20 years of experience. Happy to help SPM students for free!",
+        "azmi@studyconnect.my"
+    ),
+    (
+        "Dr. Priya Nair", "Chemistry", "TUE_3PM,THU_3PM,SAT_10AM",
+        "Organic Chemistry, Titration, Electrolysis", "Thermodynamics",
+        "Provider", "Free Only", "Alumni (Mentor)", False, 4.9,
+        "Chemistry PhD graduate. Specialises in SPM & STPM Chemistry. Volunteering to help SPM students for free.",
+        "priya@chemtutor.my"
+    ),
+    (
+        "Ahmad Fauzi", "Physics", "MON_6PM,WED_6PM,FRI_6PM",
+        "Mechanics, Electromagnetism, Waves", "Nuclear Physics",
+        "Provider", "Free Only", "Student (Peer)", False, 4.5,
+        "Final-year Physics student at UM. Volunteer tutoring for SPM students.",
+        "fauzi@um.edu.my"
+    ),
+    (
+        "Tan Shu Qi", "Additional Mathematics", "SAT_9AM,SUN_9AM",
+        "Differentiation, Integration, Vectors", "Statistics",
+        "Provider", "Free Only", "Alumni (Mentor)", False, 4.7,
+        "A+ in SPM Add Maths. Volunteer tutor offering proven exam strategies for free.",
+        "shuqi.tutor@gmail.com"
+    ),
+    (
+        "Nabilah Husna", "Bahasa Melayu", "MON_4PM,TUE_4PM,WED_4PM",
+        "Karangan, Tatabahasa, Komsas", "Pemahaman",
+        "Provider", "Free Only", "Student (Peer)", False, 4.3,
+        "SPM BM scorer (A+). Offering free BM essay coaching for struggling students.",
+        "nabilah@studyconnect.my"
+    ),
+    (
+        "Marcus Lee", "English Language", "TUE_7PM,THU_7PM,SAT_2PM",
+        "Essay Writing, Grammar, Comprehension", "Speaking",
+        "Provider", "Free Only", "Alumni (Mentor)", False, 4.6,
+        "MUET Band 6. English tutor specialising in SPM, MUET and IELTS preparation. Volunteer tutor.",
+        "marcus@englishpro.my"
+    ),
+    (
+        "Kavitha Devi", "Biology", "WED_2PM,FRI_2PM,SUN_10AM",
+        "Cell Biology, Genetics, Ecology", "Physiology",
+        "Provider", "Free Only", "Student (Peer)", False, 4.4,
+        "Biology degree student at UPM. Free tutoring for SPM Bio, focus on memorisation techniques.",
+        "kavitha@upm.edu.my"
+    ),
+    (
+        "Wong Kai Ming", "Accounting", "MON_7PM,WED_7PM,SAT_9AM",
+        "Double Entry, Financial Statements, Costing", "Budgeting",
+        "Provider", "Free Only", "Alumni (Mentor)", False, 4.8,
+        "ACCA qualified. Volunteering to tutor SPM Perakaunan and A-Level Accounting for free.",
+        "kaiming@accatutor.my"
+    ),
+    (
+        "Syafiq Hazwan", "Computer Science", "TUE_8PM,THU_8PM,SAT_3PM",
+        "Programming, Algorithms, Database", "Networking",
+        "Provider", "Free Only", "Student (Peer)", False, 4.2,
+        "CS student at UTM. Tutoring SPM Sains Komputer — Python, pseudocode, databases.",
+        "syafiq@utm.edu.my"
+    ),
+    (
+        "Lim Jia Hao", "Economics", "MON_5PM,FRI_5PM,SUN_2PM",
+        "Macroeconomics, Microeconomics, Demand & Supply", "International Trade",
+        "Provider", "Free Only", "Alumni (Mentor)", False, 4.5,
+        "Economics graduate. SPM & STPM Economics specialist. Volunteer tutoring.",
+        "jiahao@ecotutor.my"
+    ),
+    (
+        "Farah Nadia", "Sejarah (History)", "TUE_4PM,THU_4PM",
+        "SPM History facts, Essay technique, Timeline", "World History",
+        "Provider", "Free Only", "Student (Peer)", False, 4.1,
+        "Scored A+ in SPM Sejarah. Sharing my memorisation framework for free.",
+        "farah@studyconnect.my"
+    ),
+    (
+        "Rajesh Kumar", "Science", "MON_4PM,WED_4PM,FRI_4PM",
+        "Physics concepts, Chemistry basics, Biology", "Advanced topics",
+        "Provider", "Free Only", "Student (Peer)", False, 4.0,
+        "Form 5 student. Can help Form 3 students with PT3 Science preparation.",
+        "rajesh@studyconnect.my"
+    ),
+
+
+    # ── Study Partners / Peers (Receivers, Free Only) ───────────
+    (
+        "Amirah Zainal", "Mathematics", "MON_3PM,WED_3PM",
+        "Geometry, Number Patterns", "Calculus, Integration",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.5,
+        "Form 5 student aiming for A in SPM Maths. Looking for a study buddy!",
+        "amirah@student.my"
+    ),
+    (
+        "Li Wei", "Physics", "TUE_4PM,SAT_10AM",
+        "Waves, Optics", "Electricity, Mechanics",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.2,
+        "Struggling with electricity chapter. Want to study together with someone at similar level.",
+        "liwei@student.my"
+    ),
+    (
+        "Nurul Ain", "Chemistry", "WED_5PM,SUN_3PM",
+        "Acids & Bases", "Organic Chemistry, Electrolysis",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.8,
+        "Love discussion-based study sessions! Looking for a Chemistry study partner.",
+        "nurulain@student.my"
+    ),
+    (
+        "Muhammad Hafiz", "Biology", "MON_7PM,THU_7PM",
+        "Cell Biology", "Genetics, Ecology",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.4,
+        "Prefer online group study. Looking for Bio friends for SPM 2025.",
+        "hafiz@student.my"
+    ),
+    (
+        "Chen Jie", "Additional Mathematics", "SAT_2PM,SUN_4PM",
+        "Geometry, Trigonometry", "Integration, Differentiation",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.6,
+        "Weekend study group for Add Maths? Count me in! Weak in calculus.",
+        "chenjie@student.my"
+    ),
+    (
+        "Siti Rahayu", "Bahasa Melayu", "TUE_5PM,FRI_5PM",
+        "Komsas, Literature", "Karangan Formal",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.9,
+        "Looking for a BM study partner especially for formal essay practice.",
+        "siti@student.my"
+    ),
+    (
+        "Vikram Singh", "English Language", "MON_8PM,WED_8PM",
+        "Comprehension, Literature", "Essay Writing, Grammar",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.3,
+        "Weak in English essay writing. Looking for a peer to practice with.",
+        "vikram@student.my"
+    ),
+    (
+        "Ng Wei Ting", "Accounting", "THU_6PM,SAT_11AM",
+        "Ledger Entries", "Final Accounts, Costing",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.7,
+        "SPM Perakaunan is hard! Looking for someone to do past-year papers together.",
+        "weiting@student.my"
+    ),
+    (
+        "Azlan Shah", "Economics", "TUE_6PM,SUN_5PM",
+        "Demand & Supply, Market Structures", "Macroeconomics",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.5,
+        "Prefer discussion-style study. Looking for Econ study buddy for STPM.",
+        "azlan@student.my"
+    ),
+    (
+        "Ong Kai Xin", "Computer Science", "FRI_7PM,SAT_4PM",
+        "Programming logic, Boolean algebra", "Database, Networking",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.2,
+        "SPM CS student. Looking for someone to practice coding with.",
+        "kaixin@student.my"
+    ),
+    (
+        "Priya Devi", "Moral Education", "WED_6PM,SAT_2PM",
+        "Nilai Murni concepts", "Essay technique",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.8,
+        "SPM Pendidikan Moral — need help with memorising nilai and essay structure.",
+        "priya@student.my"
+    ),
+    (
+        "Hakim Roslan", "Sejarah (History)", "MON_5PM,THU_5PM",
+        "Perang Dunia, Tokoh", "Kronologi, Peta Minda",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.0,
+        "Sejarah is so much to memorise! Need a study partner with good memory tricks.",
+        "hakim@student.my"
+    ),
+    (
+        "Grace Tan", "Science", "TUE_3PM,FRI_3PM",
+        "Biology basics, Chemistry concepts", "Physics",
+        "Receiver", "Free Only", "Student (Peer)", False, 3.6,
+        "PT3 Science student. Looking for online study buddy — prefer Zoom sessions.",
+        "grace@student.my"
+    ),
+]
+
 
 def seed():
-    print("Initializing Database...")
-    init_db()
+    print("=" * 55)
+    print("  StudyConnect Database Seeder")
+    print("  Malaysian School Subjects Edition")
+    print("=" * 55)
 
-    password_hash = generate_password_hash("password123")
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
 
-    # 1. Create Users
-    users_data = [
-        {"username": "admin", "email": "admin@studyconnect.com", "role": "admin"},
-        {"username": "Alice Tan", "email": "alice@monash.edu", "role": "student"},
-        {"username": "Bob Lim", "email": "bob@monash.edu", "role": "student"},
-        {"username": "Charlie Song", "email": "charlie@monash.edu", "role": "volunteer"},
-        {"username": "Dana Vance", "email": "dana@monash.edu", "role": "volunteer"},
-        {"username": "Elena Gilbert", "email": "elena@monash.edu", "role": "paid"},
-        {"username": "Frank Castle", "email": "frank@monash.edu", "role": "paid"},
+    # Ensure table exists with all needed columns
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE,
+        subject_id TEXT, time_slots TEXT,
+        advantage TEXT, weakness TEXT,
+        intent TEXT, fee_pref TEXT, role TEXT, privacy_mode BOOLEAN, rating REAL,
+        email TEXT, email_verified INTEGER DEFAULT 0, google_id TEXT,
+        contact_info TEXT, bio TEXT, profile_pic TEXT
+    )
+    """)
+
+    # Safe migration: add columns if they don't exist
+    new_cols = [
+        ("email",          "TEXT"),
+        ("email_verified", "INTEGER DEFAULT 0"),
+        ("google_id",      "TEXT"),
+        ("contact_info",   "TEXT"),
+        ("bio",            "TEXT"),
+        ("profile_pic",    "TEXT"),
     ]
+    for col_name, col_type in new_cols:
+        try:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+        except Exception:
+            pass
 
-    uids = {}
-    print("Seeding Users...")
-    for u in users_data:
-        uid = create_user(u["username"], u["email"], password_hash, u["role"])
-        uids[u["username"]] = uid
-        print(f"  Created user: {u['username']} (ID: {uid}, Role: {u['role']})")
+    # Seed matches and messages tables
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS matches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_a TEXT, user_b TEXT, status TEXT DEFAULT 'pending'
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender TEXT, receiver TEXT, content TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS email_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE, token TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    conn.commit()
 
-    # 2. Seed Profiles
-    profiles_data = {
-        "admin": {
-            "university": "Monash University",
-            "course": "Administration",
-            "year": "Postgraduate",
-            "bio": "System administrator for StudyConnect.",
-            "subjects": [],
-            "schedule": {},
-        },
-        "Alice Tan": {
-            "university": "Monash University",
-            "course": "Computer Science",
-            "year": "1st Year",
-            "bio": "Freshman CS student struggling with algebra and physics. Love hiking and coffee.",
-            "subjects": ["Mathematics", "Physics"],
-            "schedule": {
-                "Monday": ["9am", "10am", "2pm", "3pm"],
-                "Wednesday": ["10am", "11am", "4pm", "5pm"],
-                "Friday": ["9am", "10am", "12pm", "1pm"],
-            },
-            "learning_style": "Visual",
-            "strengths": "Python coding, report formatting",
-        },
-        "Bob Lim": {
-            "university": "Monash University",
-            "course": "Business Administration",
-            "year": "2nd Year",
-            "bio": "Looking for help with Accounting and Economics before the midterms.",
-            "subjects": ["Accounting", "Economics"],
-            "schedule": {
-                "Tuesday": ["10am", "11am", "2pm", "3pm"],
-                "Thursday": ["10am", "11am", "4pm", "5pm"],
-            },
-            "learning_style": "Reading/Writing",
-            "strengths": "Presentation skills",
-        },
-        "Charlie Song": {
-            "university": "Monash University",
-            "course": "Mechanical Engineering",
-            "year": "3rd Year",
-            "bio": "Enthusiastic about math and physics. Happy to help peers review calculus sheets for free!",
-            "subjects": ["Mathematics", "Physics"],
-            "schedule": {
-                "Monday": ["9am", "10am", "2pm", "3pm", "6pm", "7pm"],
-                "Wednesday": ["10am", "11am", "4pm", "5pm", "6pm", "7pm"],
-                "Friday": ["9am", "10am", "3pm", "4pm"],
-            },
-            "learning_style": "Kinesthetic",
-            "strengths": "Calculus, Solid Mechanics, CAD drawing",
-            "rate": 0,
-            "experience": "Tutored peers during college. Led calculus review workshops.",
-            "max_students": 4,
-        },
-        "Dana Vance": {
-            "university": "Monash University",
-            "course": "Software Engineering",
-            "year": "4th Year",
-            "bio": "Software engineer intern. Ready to tutor programming (Python, JS, Java) and statistics.",
-            "subjects": ["Programming", "Data Science", "Statistics"],
-            "schedule": {
-                "Monday": ["6pm", "7pm", "8pm"],
-                "Tuesday": ["6pm", "7pm", "8pm"],
-                "Thursday": ["6pm", "7pm", "8pm"],
-                "Saturday": ["10am", "11am", "12pm", "2pm", "3pm"],
-            },
-            "learning_style": "Kinesthetic",
-            "strengths": "Web development, database architecture",
-            "rate": 0,
-            "experience": "Voted best helper in CodeClub Monash. 2 years web dev experience.",
-            "max_students": 5,
-        },
-        "Elena Gilbert": {
-            "university": "Monash University",
-            "course": "Medicinal Chemistry",
-            "year": "3rd Year",
-            "bio": "Tutoring organic chemistry and cell biology. Providing custom summary notes.",
-            "subjects": ["Chemistry", "Biology"],
-            "schedule": {
-                "Wednesday": ["2pm", "3pm", "4pm"],
-                "Friday": ["10am", "11am", "2pm", "3pm"],
-                "Sunday": ["10am", "11am", "2pm", "3pm"],
-            },
-            "learning_style": "Visual",
-            "strengths": "Laboratory reporting, chemical reactions diagramming",
-            "rate": 45.0,
-            "experience": "Private home tuition tutor for 2 years. Got A+ in all chem units.",
-            "max_students": 3,
-        },
-        "Frank Castle": {
-            "university": "University of Malaya",
-            "course": "Applied Economics",
-            "year": "Postgraduate",
-            "bio": "Teaching macro/micro economics, accounting, and financial management.",
-            "subjects": ["Economics", "Accounting", "Statistics"],
-            "schedule": {
-                "Tuesday": ["2pm", "3pm", "4pm", "5pm"],
-                "Thursday": ["2pm", "3pm", "4pm", "5pm"],
-                "Saturday": ["9am", "10am", "11am", "2pm", "3pm"],
-            },
-            "learning_style": "Auditory",
-            "strengths": "Financial modeling, econometrics",
-            "rate": 60.0,
-            "experience": "Teaching Assistant for college level economics. Professional tutor.",
-            "max_students": 6,
-        },
-    }
+    print(f"\nSeeding {len(SEED_USERS)} users...\n")
+    inserted = 0
+    skipped  = 0
 
-    print("Seeding Profiles...")
-    for username, p_data in profiles_data.items():
-        uid = uids[username]
-        save_or_update_profile(uid, p_data)
-        print(f"  Profile set for: {username}")
+    for user in SEED_USERS:
+        name, subject, time_slots, advantage, weakness, intent, fee_pref, role, privacy_mode, rating, bio, contact_info = user
+        try:
+            cursor.execute("""
+            INSERT INTO users (name, subject_id, time_slots, advantage, weakness, intent, fee_pref,
+                               role, privacy_mode, rating, bio, contact_info, email_verified)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """, (name, subject, time_slots, advantage, weakness, intent, fee_pref,
+                  role, int(privacy_mode), rating, bio, contact_info))
+            conn.commit()
+            tag = "[TUTOR]" if intent == "Provider" else "[PEER] "
+            print(f"  OK  {tag}  {name:<25} -- {subject}")
+            inserted += 1
+        except sqlite3.IntegrityError:
+            print(f"  ⏭  Skipped (already exists): {name}")
+            skipped += 1
 
-    # 3. Seed Reviews
-    print("Seeding Reviews...")
-    reviews_data = [
-        {"reviewer": "Alice Tan", "reviewee": "Charlie Song", "rating": 5.0, "comment": "Charlie explains derivatives really well! Highly recommend."},
-        {"reviewer": "Bob Lim", "reviewee": "Frank Castle", "rating": 4.5, "comment": "Helped me pass my accounting mock test. Worth the hourly rate."},
-        {"reviewer": "Alice Tan", "reviewee": "Elena Gilbert", "rating": 4.0, "comment": "Elena has great chemistry notes. Very structured session."},
-    ]
+    conn.close()
+    print(f"\n{'─'*55}")
+    print(f"  Done! {inserted} added, {skipped} skipped.")
+    print(f"  Subjects covered: {len(SUBJECTS)}")
+    print(f"  Tutors: {sum(1 for u in SEED_USERS if u[5] == 'Provider')}")
+    print(f"  Study Partners: {sum(1 for u in SEED_USERS if u[5] == 'Receiver')}")
+    print(f"{'─'*55}\n")
 
-    for rev in reviews_data:
-        create_review(
-            reviewer_id=uids[rev["reviewer"]],
-            reviewee_id=uids[rev["reviewee"]],
-            rating=rev["rating"],
-            comment=rev["comment"]
-        )
-        print(f"  Review added: {rev['reviewer']} -> {rev['reviewee']}")
-
-    # 4. Seed Messages
-    print("Seeding Messages...")
-    msgs = [
-        {"sender": "Alice Tan", "receiver": "Charlie Song", "content": "Hi Charlie! I saw you tutor Mathematics. Are you free this Monday morning?"},
-        {"sender": "Charlie Song", "receiver": "Alice Tan", "content": "Hi Alice! Yes, I am free between 9am and 11am on Monday. What topics are you looking to review?"},
-        {"sender": "Alice Tan", "receiver": "Charlie Song", "content": "I need some help reviewing calculus limits and linear functions."},
-        {"sender": "Bob Lim", "receiver": "Frank Castle", "content": "Hello Frank, I would like to schedule an accounting lesson. Is RM 60 your fixed rate?"},
-    ]
-
-    for msg in msgs:
-        send_message(
-            sender_id=uids[msg["sender"]],
-            receiver_id=uids[msg["receiver"]],
-            content=msg["content"]
-        )
-        print(f"  Message: {msg['sender']} -> {msg['receiver']}")
-
-    # 5. Seed Help Requests
-    print("Seeding Help Requests...")
-    reqs = [
-        {
-            "student": "Alice Tan",
-            "tutor": "Charlie Song",
-            "subject": "Mathematics",
-            "topic": "Calculus Limits",
-            "description": "Struggling with delta-epsilon limit definitions and solving exam questions.",
-            "type": "Exam Prep",
-            "urgency": "High"
-        },
-        {
-            "student": "Bob Lim",
-            "tutor": "Frank Castle",
-            "subject": "Accounting",
-            "topic": "Ledger Bookkeeping",
-            "description": "Struggling to balance trial balance sheet assets and liabilities columns.",
-            "type": "General Learning",
-            "urgency": "Medium"
-        }
-    ]
-
-    for req in reqs:
-        create_help_request(
-            student_id=uids[req["student"]],
-            tutor_id=uids[req["tutor"]],
-            subject=req["subject"],
-            topic=req["topic"],
-            description=req["description"],
-            req_type=req["type"],
-            urgency=req["urgency"]
-        )
-        print(f"  Help Request created: {req['student']} -> {req['tutor']}")
-
-    print("\nDatabase Seeding Completed Successfully!")
 
 if __name__ == "__main__":
     seed()

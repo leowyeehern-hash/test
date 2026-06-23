@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyConnect — Find Tutors & Study Partners in Malaysia</title>
+  <meta name="description" content="StudyConnect helps Malaysian students find qualified tutors and study partners for SPM, STPM, and university subjects." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    /* ═══ CSS RESET & TOKENS ════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #07071a;
+      --bg2:         #0d0d28;
+      --card:        rgba(255,255,255,0.04);
+      --card-hover:  rgba(255,255,255,0.07);
+      --border:      rgba(139,92,246,0.18);
+      --border-glow: rgba(139,92,246,0.45);
+      --purple:      #7c3aed;
+      --purple-lt:   #a78bfa;
+      --blue:        #2563eb;
+      --teal:        #0ea5e9;
+      --green:       #10b981;
+      --amber:       #f59e0b;
+      --red:         #ef4444;
+      --text:        #e2e8f0;
+      --text-muted:  #94a3b8;
+      --text-dim:    #64748b;
+      --grad:        linear-gradient(135deg, #7c3aed, #2563eb);
+      --grad-soft:   linear-gradient(135deg, rgba(124,58,237,0.15), rgba(37,99,235,0.15));
+      --radius:      14px;
+      --shadow:      0 8px 32px rgba(0,0,0,0.4);
+      --shadow-glow: 0 0 40px rgba(124,58,237,0.25);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ═══ ANIMATED BACKGROUND ══════════════════════════════════ */
+    .bg-orbs {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    .bg-orbs::before {
+      content: '';
+      position: absolute; top: -20%; left: -10%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+    .bg-orbs::after {
+      content: '';
+      position: absolute; bottom: -20%; right: -10%;
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(14,165,233,0.10) 0%, transparent 70%);
+      animation: drift 22s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(60px, 40px) scale(1.08); }
+    }
+
+    /* ═══ LAYOUT ════════════════════════════════════════════════ */
+    .app { position: relative; z-index: 1; }
+
+    /* ═══ TOPBAR / NAV ══════════════════════════════════════════ */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 64px;
+      background: rgba(7,7,26,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 20px; font-weight: 800; color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo span { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-links { display: flex; gap: 8px; }
+    .nav-link {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); font-family: inherit; font-size: 14px; font-weight: 500;
+      padding: 8px 16px; border-radius: 8px; transition: all 0.2s;
+    }
+    .nav-link:hover { background: var(--card); color: var(--text); }
+    .nav-link.active { background: var(--grad-soft); color: var(--purple-lt); }
+    .nav-user { display: flex; align-items: center; gap: 12px; }
+    .nav-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--purple);
+      object-fit: cover; cursor: pointer;
+    }
+    .nav-email { font-size: 13px; color: var(--text-muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ═══ ALERT BANNER ══════════════════════════════════════════ */
+    .alert-banner {
+      display: none; align-items: center; justify-content: center; gap: 10px;
+      padding: 12px 24px; font-size: 14px; font-weight: 500;
+      text-align: center;
+    }
+    .alert-banner.warn { background: rgba(245,158,11,0.15); border-bottom: 1px solid rgba(245,158,11,0.3); color: var(--amber); }
+    .alert-banner.success { background: rgba(16,185,129,0.15); border-bottom: 1px solid rgba(16,185,129,0.3); color: var(--green); }
+    .alert-banner.error { background: rgba(239,68,68,0.15); border-bottom: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+    .alert-banner.show { display: flex; }
+
+    /* ═══ HERO ══════════════════════════════════════════════════ */
+    #hero {
+      padding: 80px 32px 60px;
+      max-width: 900px; margin: 0 auto; text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--grad-soft); border: 1px solid var(--border-glow);
+      padding: 6px 14px; border-radius: 100px; font-size: 13px;
+      color: var(--purple-lt); font-weight: 600; margin-bottom: 24px;
+      animation: fadeInDown 0.6s ease;
+    }
+    .hero-title {
+      font-size: clamp(36px, 6vw, 64px); font-weight: 800; line-height: 1.1;
+      margin-bottom: 20px; letter-spacing: -1.5px;
+      animation: fadeInUp 0.7s ease;
+    }
+    .hero-title .grad { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero-sub {
+      font-size: 18px; color: var(--text-muted); max-width: 560px; margin: 0 auto 40px;
+      line-height: 1.7; animation: fadeInUp 0.8s ease;
+    }
+    .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; animation: fadeInUp 0.9s ease; }
+
+    /* ═══ BUTTONS ════════════════════════════════════════════════ */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px; border-radius: 10px; font-family: inherit;
+      font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+      transition: all 0.2s; text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--grad); color: #fff;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124,58,237,0.5); }
+    .btn-secondary {
+      background: var(--card); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--card-hover); border-color: var(--border-glow); }
+    .btn-google {
+      background: #fff; color: #1f2937;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      gap: 10px;
+    }
+    .btn-google:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+    .btn-google img { width: 20px; height: 20px; }
+    .btn-sm { padding: 8px 16px; font-size: 13px; }
+    .btn-teal { background: linear-gradient(135deg, #0ea5e9, #10b981); color: #fff; box-shadow: 0 4px 20px rgba(14,165,233,0.3); }
+    .btn-teal:hover { transform: translateY(-2px); }
+    .btn-outline { background: transparent; border: 1px solid var(--border-glow); color: var(--purple-lt); }
+    .btn-outline:hover { background: var(--grad-soft); }
+
+    /* ═══ STATS ROW ════════════════════════════════════════════ */
+    .stats-row {
+      display: flex; gap: 0; justify-content: center;
+      max-width: 700px; margin: 0 auto 60px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .stat {
+      flex: 1; padding: 20px; text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .stat:last-child { border-right: none; }
+    .stat-value { font-size: 28px; font-weight: 800; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-label { font-size: 12px; color: var(--text-dim); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* ═══ MAIN CONTENT TABS ═════════════════════════════════════ */
+    #main { max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+    .tabs {
+      display: flex; gap: 4px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 4px; margin-bottom: 32px;
+    }
+    .tab-btn {
+      flex: 1; background: none; border: none; cursor: pointer;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+      color: var(--text-muted); padding: 10px 16px; border-radius: 10px;
+      transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .tab-btn:hover { background: var(--card-hover); color: var(--text); }
+    .tab-btn.active { background: var(--grad); color: #fff; box-shadow: 0 4px 16px rgba(124,58,237,0.35); }
+    .tab-panel { display: none; animation: fadeInUp 0.4s ease; }
+    .tab-panel.active { display: block; }
+
+    /* ═══ SEARCH / FILTER BAR ═══════════════════════════════════ */
+    .filter-bar {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .filter-bar select, .filter-bar input {
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); font-family: inherit; font-size: 14px;
+      padding: 10px 16px; border-radius: 10px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .filter-bar select:focus, .filter-bar input:focus { border-color: var(--border-glow); }
+    .filter-bar select { cursor: pointer; min-width: 200px; }
+    .filter-bar select option { background: #1a1a3e; }
+    .filter-bar input { flex: 1; min-width: 200px; }
+    .filter-bar input::placeholder { color: var(--text-dim); }
+
+    /* ═══ CARDS GRID ════════════════════════════════════════════ */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 24px;
+      transition: all 0.3s; cursor: pointer; position: relative; overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--grad-soft); opacity: 0; transition: opacity 0.3s;
+    }
+    .card:hover { border-color: var(--border-glow); transform: translateY(-4px); box-shadow: var(--shadow-glow); }
+    .card:hover::before { opacity: 1; }
+    .card > * { position: relative; z-index: 1; }
+
+    .card-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+    .card-avatar {
+      width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: #fff;
+      background: var(--grad);
+    }
+    .card-avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-size: 16px; font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-role { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+
+    .card-subject {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.25);
+      color: var(--purple-lt); font-size: 12px; font-weight: 600;
+      padding: 4px 10px; border-radius: 100px; margin-bottom: 12px;
+    }
+
+    .card-bio {
+      font-size: 13px; color: var(--text-muted); line-height: 1.6;
+      margin-bottom: 14px;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    .card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .tag {
+      font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 100px;
+    }
+    .tag-green  { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); color: var(--green); }
+    .tag-amber  { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); color: var(--amber); }
+    .tag-blue   { background: rgba(37,99,235,0.15);  border: 1px solid rgba(37,99,235,0.3);  color: #60a5fa; }
+    .tag-purple { background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25); color: var(--purple-lt); }
+    .tag-teal   { background: rgba(14,165,233,0.12); border: 1px solid rgba(14,165,233,0.25); color: var(--teal); }
+
+    .card-footer { display: flex; align-items: center; justify-content: space-between; }
+    .card-rating { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--amber); }
+    .card-rating span { color: var(--text-muted); font-weight: 400; }
+
+    /* ═══ EMPTY / LOADING STATES ════════════════════════════════ */
+    .state-box {
+      text-align: center; padding: 60px 20px;
+      color: var(--text-dim); font-size: 15px;
+    }
+    .state-box .icon { font-size: 48px; margin-bottom: 16px; }
+    .spinner {
+      display: inline-block; width: 36px; height: 36px;
+      border: 3px solid var(--border); border-top-color: var(--purple);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══ MODAL ══════════════════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(7,7,26,0.85); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; animation: fadeIn 0.2s ease; }
+    .modal {
+      background: #0d0d28; border: 1px solid var(--border-glow);
+      border-radius: 24px; padding: 36px; max-width: 520px; width: 100%;
+      box-shadow: var(--shadow); max-height: 90vh; overflow-y: auto;
+      animation: slideUp 0.3s ease;
+    }
+    .modal h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+    .modal p { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+    .modal-close {
+      position: absolute; top: 16px; right: 16px;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text-muted); width: 32px; height: 32px; border-radius: 8px;
+      cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { background: var(--card-hover); color: var(--text); }
+
+    /* ═══ FORM ═══════════════════════════════════════════════════ */
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .form-control {
+      width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--text); font-family: inherit; font-size: 14px;
+      padding: 11px 14px; border-radius: 10px; outline: none; transition: border-color 0.2s;
+    }
+    .form-control:focus { border-color: var(--border-glow); }
+    .form-control option { background: #1a1a3e; }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* ═══ PROFILE DETAIL SLIDE ══════════════════════════════════ */
+    .detail-modal .modal { max-width: 580px; }
+    .detail-hero {
+      display: flex; align-items: center; gap: 18px; margin-bottom: 20px;
+    }
+    .detail-avatar {
+      width: 72px; height: 72px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 800; color: #fff;
+      background: var(--grad); flex-shrink: 0;
+    }
+    .detail-name { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .detail-role { font-size: 13px; color: var(--text-dim); }
+    .detail-section { margin-top: 16px; }
+    .detail-section h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 8px; }
+    .detail-text { font-size: 14px; color: var(--text-muted); line-height: 1.65; }
+    .detail-divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+    .contact-box {
+      background: var(--grad-soft); border: 1px solid var(--border-glow);
+      border-radius: 10px; padding: 14px; font-size: 14px; color: var(--purple-lt);
+      word-break: break-all;
+    }
+
+    /* ═══ PROFILE SETUP ══════════════════════════════════════════ */
+    #profileSetup .modal { max-width: 560px; }
+
+    /* ═══ ANIMATIONS ═════════════════════════════════════════════ */
+    @keyframes fadeIn      { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeInUp    { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeInDown  { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideUp     { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse-glow  { 0%,100% { box-shadow: 0 0 0 rgba(124,58,237,0); } 50% { box-shadow: 0 0 20px rgba(124,58,237,0.4); } }
+
+    /* ═══ SCROLLBAR ══════════════════════════════════════════════ */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ═══ RESPONSIVE ═════════════════════════════════════════════ */
+    @media (max-width: 640px) {
+      nav { padding: 0 16px; }
+      #hero { padding: 50px 20px 40px; }
+      .form-row { grid-template-columns: 1fr; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .stats-row { flex-direction: column; }
+      .stat { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-orbs"></div>
+<div class="app">
+
+  <!-- ─── NAV ────────────────────────────────────────────────── -->
+  <nav>
+    <a class="nav-logo" href="#" onclick="scrollTo(0,0)">
+      📚 <span>StudyConnect</span>
+    </a>
+    <div class="nav-links">
+      <button class="nav-link" onclick="showTab('tutors')">🎓 Find Tutor</button>
+      <button class="nav-link" onclick="showTab('peers')">🤝 Find Partner</button>
+      <button class="nav-link" onclick="showTab('match')">⚡ Smart Match</button>
+    </div>
+    <div class="nav-user" id="navUser">
+      <!-- Injected by JS -->
+    </div>
+  </nav>
+
+  <!-- ─── EMAIL BANNER ─────────────────────────────────────────── -->
+  <div class="alert-banner warn" id="emailBanner">
+    ✉️ Please check your inbox and confirm your email to access all features.
+    <button class="btn btn-sm" style="margin-left:8px;padding:4px 12px;background:var(--amber);color:#000;border:none;border-radius:6px;cursor:pointer;" onclick="resendConfirmation()">Resend</button>
+    <button style="background:none;border:none;color:var(--amber);cursor:pointer;font-size:18px;margin-left:4px;" onclick="closeBanner()">✕</button>
+  </div>
+  <div class="alert-banner" id="alertBanner"></div>
+
+  <!-- ─── HERO ──────────────────────────────────────────────────── -->
+  <section id="hero">
+    <div class="hero-badge">🇲🇾 Made for Malaysian Students</div>
+    <h1 class="hero-title">
+      Your <span class="grad">Perfect</span> Tutor &<br/>Study Partner Awaits
+    </h1>
+    <p class="hero-sub">
+      Connect with expert tutors and motivated study partners across all SPM, STPM, and university subjects — for free or paid.
+    </p>
+    <div class="hero-actions">
+      <!-- Google Sign-In -->
+      <button class="btn btn-google" id="googleSignInBtn" onclick="triggerGoogleSignIn()">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E" alt="Google" />
+        Continue with Google
+      </button>
+      <button class="btn btn-primary" onclick="showTab('tutors'); scrollToMain()">🎓 Find a Tutor</button>
+      <button class="btn btn-secondary" onclick="showTab('peers'); scrollToMain()">🤝 Find a Study Partner</button>
+    </div>
+  </section>
+
+  <!-- ─── STATS ──────────────────────────────────────────────── -->
+  <div class="stats-row" id="statsRow" style="max-width:700px;margin:0 auto 60px;">
+    <div class="stat"><div class="stat-value" id="statUsers">—</div><div class="stat-label">Students</div></div>
+    <div class="stat"><div class="stat-value" id="statTutors">—</div><div class="stat-label">Tutors</div></div>
+    <div class="stat"><div class="stat-value" id="statPeers">—</div><div class="stat-label">Study Partners</div></div>
+    <div class="stat"><div class="stat-value" id="statRating">—</div><div class="stat-label">Avg Rating</div></div>
+  </div>
+
+  <!-- ─── MAIN TABS ─────────────────────────────────────────── -->
+  <div id="main">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-tutors" onclick="showTab('tutors')">🎓 Find a Tutor</button>
+      <button class="tab-btn" id="tab-peers" onclick="showTab('peers')">🤝 Find a Study Partner</button>
+      <button class="tab-btn" id="tab-match" onclick="showTab('match')">⚡ Smart Match</button>
+      <button class="tab-btn" id="tab-profile" onclick="showTab('profile')">👤 My Profile</button>
+    </div>
+
+    <!-- ══ TUTORS TAB ══ -->
+    <div class="tab-panel active" id="panel-tutors">
+      <div class="filter-bar">
+        <select id="tutorSubjectFilter" onchange="loadTutors()">
+          <option value="">📚 All Subjects</option>
+        </select>
+        <input id="tutorSearch" type="text" placeholder="🔍 Search by name or skill..." oninput="filterCards('tutors')" />
+        <button class="btn btn-outline btn-sm" onclick="loadTutors()">↻ Refresh</button>
+      </div>
+      <div class="cards-grid" id="tutorsGrid">
+        <div class="state-box" style="grid-column:1/-1">
+          <div class="spinner"></div>
+          <p style="margin-top:12px">Loading tutors…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PEERS TAB ══ -->
+    <div class="tab-panel" id="panel-peers">
+      <div class="filter-bar">
+        <select id="peerSubjectFilter" onchange="loadPeers()">
+          <option value="">📚 All Subjects</option>
+        </select>
+        <input id="peerSearch" type="text" placeholder="🔍 Search by name or subject..." oninput="filterCards('peers')" />
+        <button class="btn btn-outline btn-sm" onclick="loadPeers()">↻ Refresh</button>
+      </div>
+      <div class="cards-grid" id="peersGrid">
+        <div class="state-box" style="grid-column:1/-1">
+          <div class="spinner"></div>
+          <p style="margin-top:12px">Loading study partners…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SMART MATCH TAB ══ -->
+    <div class="tab-panel" id="panel-match">
+      <div style="max-width:520px;margin:0 auto">
+        <h2 style="margin-bottom:8px;font-size:22px">⚡ Smart Match</h2>
+        <p style="color:var(--text-muted);margin-bottom:28px">Tell us about yourself and we'll find your ideal tutor or study partner using our AI scoring algorithm.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Your Name</label>
+            <input class="form-control" id="matchName" placeholder="e.g. Ahmad Haziq" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Subject</label>
+            <select class="form-control" id="matchSubject"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">I am looking to…</label>
+            <select class="form-control" id="matchIntent">
+              <option value="Receiver">Find help / learn</option>
+              <option value="Provider">Teach / tutor</option>
+            </select>
+          </div>
+          <input type="hidden" id="matchFee" value="Free Only" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">My Strengths</label>
+            <input class="form-control" id="matchAdv" placeholder="e.g. Algebra, Essay writing" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">I struggle with…</label>
+            <input class="form-control" id="matchWeak" placeholder="e.g. Calculus, Organic Chemistry" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Study Mode</label>
+            <select class="form-control" id="matchMode">
+              <option>Online</option><option>In-Person</option><option>Both</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Language</label>
+            <select class="form-control" id="matchLang">
+              <option>English</option><option>Bahasa Melayu</option><option>Both</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="runMatch()">⚡ Find My Best Matches</button>
+        <div id="matchResults" style="margin-top:28px"></div>
+      </div>
+    </div>
+
+    <!-- ══ PROFILE TAB ══ -->
+    <div class="tab-panel" id="panel-profile">
+      <div style="max-width:540px;margin:0 auto;text-align:center;padding:60px 20px;" id="profileGuest">
+        <div style="font-size:64px;margin-bottom:16px">👤</div>
+        <h2 style="margin-bottom:10px">Sign in to set up your profile</h2>
+        <p style="color:var(--text-muted);margin-bottom:28px">Create your study profile to be discovered by tutors and peers.</p>
+        <button class="btn btn-google" onclick="triggerGoogleSignIn()">
+          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E" alt="Google" style="width:20px" />
+          Sign in with Google
+        </button>
+      </div>
+      <div id="profileLoggedIn" style="display:none; max-width:600px; margin:0 auto;">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div><!-- /#main -->
+</div><!-- /.app -->
+
+<!-- ─── TUTOR / PEER DETAIL MODAL ──────────────────────────── -->
+<div class="modal-overlay detail-modal" id="detailModal" onclick="closeDetail(event)">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- ─── PROFILE SETUP MODAL ────────────────────────────────── -->
+<div class="modal-overlay" id="profileSetup" onclick="closeProfileSetup(event)">
+  <div class="modal" id="profileSetupModal" style="position:relative">
+    <button class="modal-close" onclick="document.getElementById('profileSetup').classList.remove('open')">✕</button>
+    <h2>✏️ Complete Your Profile</h2>
+    <p>Help tutors and peers find you more easily.</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-control" id="setupSubject"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">I want to…</label>
+        <select class="form-control" id="setupIntent">
+          <option value="Receiver">Find help / study</option>
+          <option value="Provider">Tutor others</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="grid-column: span 2;">
+        <label class="form-label">Language</label>
+        <select class="form-control" id="setupLang">
+          <option>English</option><option>Bahasa Melayu</option><option>Both</option>
+        </select>
+      </div>
+      <input type="hidden" id="setupFee" value="Free Only" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">My Strengths</label>
+      <input class="form-control" id="setupAdv" placeholder="e.g. Algebra, Essay writing, Organic Chemistry" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">I struggle with…</label>
+      <input class="form-control" id="setupWeak" placeholder="e.g. Calculus, Trigonometry" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Available Times</label>
+      <input class="form-control" id="setupTime" placeholder="e.g. MON_4PM, WED_6PM, SAT_10AM" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Bio / About Me</label>
+      <textarea class="form-control" id="setupBio" placeholder="Tell tutors and peers a bit about you…"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contact Info</label>
+      <input class="form-control" id="setupContact" placeholder="e.g. WhatsApp number, Telegram @handle" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Study Mode</label>
+        <select class="form-control" id="setupMode">
+          <option>Online</option><option>In-Person</option><option>Both</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="setupPrivacy" style="accent-color:var(--purple)" />
+          Hide my contact info
+        </label>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveProfile()">💾 Save Profile</button>
+  </div>
+</div>
+
+<!-- ─── JAVASCRIPT ────────────────────────────────────────── -->
+<script>
+/* ── Config ─────────────────────────────────────────────── */
+const API      = '';           // Flask runs on same origin; set to http://localhost:5000 if different
+const G_CLIENT = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'; // ← Replace with your Client ID
+
+/* ── State ───────────────────────────────────────────────── */
+let currentUser   = JSON.parse(localStorage.getItem('sc_user') || 'null');
+let allTutors     = [];
+let allPeers      = [];
+let allSubjects   = [];
+
+/* ══ BOOT ════════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', async () => {
+  checkUrlParams();
+  await loadSubjects();
+  populateSubjectDropdowns();
+  renderNav();
+  loadStats();
+  loadTutors();
+  loadPeers();
+  if (currentUser) renderProfileTab();
+});
+
+/* ══ URL PARAMS (email confirmation result) ════════════════ */
+function checkUrlParams() {
+  const params  = new URLSearchParams(window.location.search);
+  const status  = params.get('email_confirm');
+  const msg     = params.get('msg');
+  if (status === 'success') showAlert(msg || 'Email confirmed! 🎉', 'success', 6000);
+  if (status === 'error')   showAlert(msg || 'Confirmation failed.', 'error', 8000);
+  if (status) window.history.replaceState({}, '', window.location.pathname);
+}
+
+/* ══ ALERTS ══════════════════════════════════════════════════ */
+function showAlert(msg, type = 'success', ms = 4000) {
+  const b = document.getElementById('alertBanner');
+  b.textContent  = msg;
+  b.className    = `alert-banner ${type} show`;
+  setTimeout(() => b.classList.remove('show'), ms);
+}
+function closeBanner() { document.getElementById('emailBanner').classList.remove('show'); }
+
+/* ══ NAV ═════════════════════════════════════════════════════ */
+function renderNav() {
+  const el = document.getElementById('navUser');
+  if (currentUser) {
+    el.innerHTML = `
+      <span class="nav-email">${currentUser.email || ''}</span>
+      ${currentUser.profile_pic ? `<img class="nav-avatar" src="${currentUser.profile_pic}" alt="avatar" onclick="showTab('profile')" />` : ''}
+      <button class="btn btn-sm btn-outline" onclick="signOut()">Sign Out</button>
+    `;
+    document.getElementById('googleSignInBtn').style.display = 'none';
+    if (!currentUser.email_verified) {
+      document.getElementById('emailBanner').classList.add('show');
+    }
+  } else {
+    el.innerHTML = `<button class="btn btn-sm btn-primary" onclick="triggerGoogleSignIn()">Sign in</button>`;
+    document.getElementById('googleSignInBtn').style.display = '';
+  }
+}
+
+/* ══ GOOGLE SIGN-IN ══════════════════════════════════════════ */
+function triggerGoogleSignIn() {
+  if (G_CLIENT.startsWith('YOUR_')) {
+    // Dev mode: simulate login with a fake user
+    const fakeUser = {
+      name:           'Test Student',
+      email:          'test@studyconnect.my',
+      email_verified: false,
+      profile_pic:    '',
+      intent:         'Receiver',
+    };
+    currentUser = fakeUser;
+    localStorage.setItem('sc_user', JSON.stringify(fakeUser));
+    renderNav();
+    renderProfileTab();
+    showAlert('⚠️ Dev mode: Replace G_CLIENT with your Google Client ID for real sign-in.', 'warn', 8000);
+    showTab('profile');
+    return;
+  }
+
+  // Real Google Sign-In via GIS
+  if (window.google && google.accounts) {
+    google.accounts.id.initialize({
+      client_id: G_CLIENT,
+      callback: handleGoogleCredential,
+      auto_select: false,
+    });
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        google.accounts.id.renderButton(
+          document.getElementById('googleSignInBtn'),
+          { theme: 'outline', size: 'large', text: 'signin_with' }
+        );
+      }
+    });
+  } else {
+    showAlert('Google Sign-In not loaded. Check your internet connection.', 'error');
+  }
+}
+
+async function handleGoogleCredential(response) {
+  const idToken = response.credential;
+  try {
+    const res  = await fetch(`${API}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_token: idToken }),
+    });
+    const data = await res.json();
+    if (res.ok && data.user) {
+      currentUser = data.user;
+      localStorage.setItem('sc_user', JSON.stringify(data.user));
+      renderNav();
+      renderProfileTab();
+      showAlert(`Welcome, ${data.user.name}! 🎉`, 'success');
+      if (data.email_status === 'confirmation_sent') {
+        document.getElementById('emailBanner').classList.add('show');
+        showAlert('Confirmation email sent — check your inbox!', 'warn', 7000);
+      }
+    } else {
+      showAlert(data.error || 'Sign-in failed', 'error');
+    }
+  } catch (e) {
+    showAlert('Server error during sign-in. Is Flask running?', 'error');
+  }
+}
+
+function signOut() {
+  currentUser = null;
+  localStorage.removeItem('sc_user');
+  renderNav();
+  showAlert('Signed out.', 'success', 2000);
+  document.getElementById('panel-profile').innerHTML = document.getElementById('profileGuest').outerHTML;
+  showTab('tutors');
+}
+
+async function resendConfirmation() {
+  if (!currentUser?.email) return;
+  showAlert('Resend feature: sign in again to trigger a new confirmation email.', 'warn', 5000);
+}
+
+/* ══ SUBJECTS ════════════════════════════════════════════════ */
+async function loadSubjects() {
+  try {
+    const res  = await fetch(`${API}/api/subjects`);
+    const data = await res.json();
+    allSubjects = data.subjects || [];
+  } catch {
+    allSubjects = [
+      'Mathematics','Additional Mathematics','Bahasa Melayu','English Language',
+      'Physics','Chemistry','Biology','Sejarah (History)','Geografi (Geography)',
+      'Pendidikan Islam','Moral Education','Accounting','Economics','Computer Science',
+      'Art (Seni Visual)','Business Studies','Science',
+    ];
+  }
+}
+
+function populateSubjectDropdowns() {
+  const ids = ['tutorSubjectFilter','peerSubjectFilter','matchSubject','setupSubject'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isFilter = id.includes('Filter');
+    if (isFilter) {
+      el.innerHTML = '<option value="">📚 All Subjects</option>';
+    } else {
+      el.innerHTML = '<option value="">Select a subject…</option>';
+    }
+    allSubjects.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s; opt.textContent = s;
+      el.appendChild(opt);
+    });
+  });
+}
+
+/* ══ STATS ═══════════════════════════════════════════════════ */
+async function loadStats() {
+  try {
+    const res  = await fetch(`${API}/api/stats`);
+    const data = await res.json();
+    animateCount('statUsers',  data.total_users    || 0);
+    animateCount('statTutors', data.tutors         || 0);
+    animateCount('statPeers',  data.study_partners || 0);
+    document.getElementById('statRating').textContent = (data.average_rating || 0).toFixed(1) + '★';
+  } catch { /* silent */ }
+}
+
+function animateCount(id, target) {
+  const el = document.getElementById(id);
+  let current = 0;
+  const step  = Math.max(1, Math.floor(target / 40));
+  const timer = setInterval(() => {
+    current = Math.min(current + step, target);
+    el.textContent = current;
+    if (current >= target) clearInterval(timer);
+  }, 30);
+}
+
+/* ══ TABS ════════════════════════════════════════════════════ */
+function showTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const btn = document.getElementById(`tab-${name}`);
+  const panel = document.getElementById(`panel-${name}`);
+  if (btn)   btn.classList.add('active');
+  if (panel) panel.classList.add('active');
+  if (name === 'profile') renderProfileTab();
+}
+
+function scrollToMain() {
+  document.getElementById('main').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ══ LOAD TUTORS ═════════════════════════════════════════════ */
+async function loadTutors() {
+  const subject = document.getElementById('tutorSubjectFilter').value;
+  const grid    = document.getElementById('tutorsGrid');
+  grid.innerHTML = '<div class="state-box" style="grid-column:1/-1"><div class="spinner"></div><p style="margin-top:12px">Loading tutors…</p></div>';
+  try {
+    const url = `${API}/api/find-tutor${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    allTutors = data.tutors || [];
+    renderTutorCards(allTutors);
+  } catch {
+    grid.innerHTML = '<div class="state-box" style="grid-column:1/-1"><div class="icon">⚠️</div><p>Could not load tutors. Make sure the Flask server is running.</p></div>';
+  }
+}
+
+function renderTutorCards(tutors) {
+  const grid = document.getElementById('tutorsGrid');
+  if (!tutors.length) {
+    grid.innerHTML = '<div class="state-box" style="grid-column:1/-1"><div class="icon">🔍</div><p>No tutors found for this subject yet.</p></div>';
+    return;
+  }
+  grid.innerHTML = tutors.map(t => tutorCard(t)).join('');
+}
+
+function tutorCard(t) {
+  const initials = (t.name || '?').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+  const rating   = parseFloat(t.rating) || 3.0;
+  const stars    = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
+  const isPaid   = t.fee_pref === 'Paid Only';
+  const isTop    = rating >= 4.5;
+  return `
+  <div class="card" onclick="showDetail(${JSON.stringify(t).replace(/"/g,'&quot;')}, 'tutor')">
+    <div class="card-header">
+      <div class="card-avatar">${t.profile_pic ? `<img src="${t.profile_pic}" alt="${initials}" />` : initials}</div>
+      <div class="card-info">
+        <div class="card-name">${escHtml(t.name || 'Unknown')}</div>
+        <div class="card-role">${escHtml(t.role || 'Tutor')} ${isTop ? '⭐ Top Rated' : ''}</div>
+      </div>
+    </div>
+    <div class="card-subject">📚 ${escHtml(t.subject_id || 'General')}</div>
+    <p class="card-bio">${escHtml(t.bio || t.advantage || 'Experienced tutor ready to help.')}</p>
+    <div class="card-tags">
+      ${isPaid ? '<span class="tag tag-amber">💰 Paid</span>' : '<span class="tag tag-green">🆓 Free</span>'}
+      <span class="tag tag-blue">${escHtml(t.study_mode || 'Online')}</span>
+      <span class="tag tag-purple">${escHtml(t.language || 'English')}</span>
+    </div>
+    <div class="card-footer">
+      <div class="card-rating">${stars} <span>${rating.toFixed(1)}</span></div>
+      <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();connectUser('${escHtml(t.name)}')">Connect →</button>
+    </div>
+  </div>`;
+}
+
+/* ══ LOAD PEERS ══════════════════════════════════════════════ */
+async function loadPeers() {
+  const subject = document.getElementById('peerSubjectFilter').value;
+  const grid    = document.getElementById('peersGrid');
+  grid.innerHTML = '<div class="state-box" style="grid-column:1/-1"><div class="spinner"></div><p style="margin-top:12px">Loading study partners…</p></div>';
+  try {
+    const url = `${API}/api/find-peer${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    allPeers = data.peers || [];
+    renderPeerCards(allPeers);
+  } catch {
+    grid.innerHTML = '<div class="state-box" style="grid-column:1/-1"><div class="icon">⚠️</div><p>Could not load peers. Make sure the Flask server is running.</p></div>';
+  }
+}
+
+function renderPeerCards(peers) {
+  const grid = document.getElementById('peersGrid');
+  if (!peers.length) {
+    grid.innerHTML = '<div class="state-box" style="grid-column:1/-1"><div class="icon">🔍</div><p>No study partners found for this subject yet.</p></div>';
+    return;
+  }
+  grid.innerHTML = peers.map(p => peerCard(p)).join('');
+}
+
+function peerCard(p) {
+  const initials = (p.name || '?').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+  const rating   = parseFloat(p.rating) || 3.0;
+  return `
+  <div class="card" onclick="showDetail(${JSON.stringify(p).replace(/"/g,'&quot;')}, 'peer')">
+    <div class="card-header">
+      <div class="card-avatar" style="background:linear-gradient(135deg,#0ea5e9,#10b981)">${p.profile_pic ? `<img src="${p.profile_pic}" alt="${initials}" />` : initials}</div>
+      <div class="card-info">
+        <div class="card-name">${escHtml(p.name || 'Unknown')}</div>
+        <div class="card-role">${escHtml(p.role || 'Student')}</div>
+      </div>
+    </div>
+    <div class="card-subject">📚 ${escHtml(p.subject_id || 'General')}</div>
+    <p class="card-bio">${escHtml(p.bio || 'Looking for a motivated study partner.')}</p>
+    <div class="card-tags">
+      <span class="tag tag-teal">🤝 Free Study Buddy</span>
+      <span class="tag tag-purple">${escHtml(p.language || 'English')}</span>
+      <span class="tag tag-blue">${escHtml(p.study_mode || 'Online')}</span>
+    </div>
+    <div class="card-footer">
+      <div class="card-rating">★ <span>${rating.toFixed(1)} rating</span></div>
+      <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();connectUser('${escHtml(p.name)}')">Partner Up →</button>
+    </div>
+  </div>`;
+}
+
+/* ══ SEARCH FILTER ═══════════════════════════════════════════ */
+function filterCards(type) {
+  const query = document.getElementById(`${type === 'tutors' ? 'tutorSearch' : 'peerSearch'}`).value.toLowerCase();
+  const items = type === 'tutors' ? allTutors : allPeers;
+  const filtered = items.filter(u =>
+    (u.name || '').toLowerCase().includes(query) ||
+    (u.subject_id || '').toLowerCase().includes(query) ||
+    (u.advantage || '').toLowerCase().includes(query) ||
+    (u.bio || '').toLowerCase().includes(query)
+  );
+  if (type === 'tutors') renderTutorCards(filtered);
+  else renderPeerCards(filtered);
+}
+
+/* ══ SMART MATCH ═════════════════════════════════════════════ */
+async function runMatch() {
+  const name    = document.getElementById('matchName').value.trim();
+  const subject = document.getElementById('matchSubject').value;
+  if (!name) { showAlert('Please enter your name.', 'warn'); return; }
+  if (!subject) { showAlert('Please select a subject.', 'warn'); return; }
+
+  const payload = {
+    user_info: {
+      name,
+      subject_id:  subject,
+      intent:      document.getElementById('matchIntent').value,
+      fee_pref:    document.getElementById('matchFee').value,
+      advantage:   document.getElementById('matchAdv').value,
+      weakness:    document.getElementById('matchWeak').value,
+      study_mode:  document.getElementById('matchMode').value,
+      language:    document.getElementById('matchLang').value,
+      role: 'Student (Peer)', rating: 3.0, privacy_mode: false, time_slots: '',
+    }
+  };
+
+  const resultBox = document.getElementById('matchResults');
+  resultBox.innerHTML = '<div style="text-align:center"><div class="spinner"></div><p style="margin-top:10px;color:var(--text-muted)">Running algorithm…</p></div>';
+
+  try {
+    const res  = await fetch(`${API}/api/match`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) {
+      resultBox.innerHTML = '<div class="state-box"><div class="icon">🔍</div><p>No matches found. Try different settings.</p></div>';
+      return;
+    }
+    resultBox.innerHTML = `<h3 style="margin-bottom:16px;font-size:17px">⚡ ${data.length} Match${data.length > 1?'es':''} Found</h3>` +
+      data.slice(0,6).map(m => matchCard(m)).join('');
+  } catch {
+    resultBox.innerHTML = '<div class="state-box"><div class="icon">⚠️</div><p>Could not run match. Is Flask running?</p></div>';
+  }
+}
+
+function matchCard(m) {
+  const t       = m.target;
+  const score   = m.score;
+  const reasons = m.reasons || [];
+  const initials = (t.name || '?').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+  const barColor = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--amber)' : 'var(--red)';
+  return `
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <div class="card-avatar">${initials}</div>
+      <div class="card-info">
+        <div class="card-name">${escHtml(t.name)}</div>
+        <div class="card-role">${escHtml(t.subject_id)} · ${escHtml(t.intent)}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:22px;font-weight:800;color:${barColor}">${score}</div>
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase">Match Score</div>
+      </div>
+    </div>
+    <div style="background:rgba(255,255,255,0.05);border-radius:6px;height:6px;margin-bottom:12px;overflow:hidden">
+      <div style="width:${score}%;height:100%;background:${barColor};border-radius:6px;transition:width 1s ease"></div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${reasons.map(r => `<div>• ${escHtml(r)}</div>`).join('')}</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-sm" onclick="connectUser('${escHtml(t.name)}')">Connect →</button>
+    </div>
+  </div>`;
+}
+
+/* ══ CONNECT ═════════════════════════════════════════════════ */
+async function connectUser(targetName) {
+  if (!currentUser) {
+    showAlert('Please sign in to connect with others.', 'warn');
+    triggerGoogleSignIn();
+    return;
+  }
+  try {
+    const res  = await fetch(`${API}/api/confirm_match`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ my_name: currentUser.name, target_name: targetName }),
+    });
+    const data = await res.json();
+    showAlert(data.message || 'Request sent!', 'success');
+  } catch {
+    showAlert('Could not send request. Try again.', 'error');
+  }
+}
+
+/* ══ DETAIL MODAL ════════════════════════════════════════════ */
+function showDetail(user, type) {
+  const initials = (user.name || '?').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+  const rating   = parseFloat(user.rating) || 3.0;
+  const stars    = Array.from({length:5}, (_,i) => i < Math.round(rating) ? '★' : '☆').join('');
+  const isHidden = (user.contact_info || '').includes('HIDDEN');
+
+  document.getElementById('detailContent').innerHTML = `
+    <div class="detail-hero">
+      <div class="detail-avatar" style="${type === 'peer' ? 'background:linear-gradient(135deg,#0ea5e9,#10b981)' : ''}">
+        ${user.profile_pic ? `<img src="${user.profile_pic}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover" />` : initials}
+      </div>
+      <div>
+        <div class="detail-name">${escHtml(user.name || 'Unknown')}</div>
+        <div class="detail-role">${escHtml(user.role || '')} · ${type === 'tutor' ? '🎓 Tutor' : '🤝 Study Partner'}</div>
+        <div style="margin-top:6px;color:var(--amber);font-weight:600">${stars} ${rating.toFixed(1)}</div>
+      </div>
+    </div>
+    <div class="card-subject">📚 ${escHtml(user.subject_id || 'General')}</div>
+    <hr class="detail-divider" />
+    ${user.bio ? `<div class="detail-section"><h4>About</h4><p class="detail-text">${escHtml(user.bio)}</p></div><hr class="detail-divider"/>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${user.advantage ? `<div class="detail-section"><h4>✅ Strengths</h4><p class="detail-text">${escHtml(user.advantage)}</p></div>` : ''}
+      ${user.weakness  ? `<div class="detail-section"><h4>⚠️ Needs Help With</h4><p class="detail-text">${escHtml(user.weakness)}</p></div>` : ''}
+    </div>
+    <hr class="detail-divider" />
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <div class="tag tag-green" style="padding:6px 10px">🆓 Free Only</div>
+      <div class="tag tag-blue"  style="padding:6px 10px">📡 ${escHtml(user.study_mode || 'Online')}</div>
+      <div class="tag tag-purple" style="padding:6px 10px">🗣 ${escHtml(user.language || 'English')}</div>
+      ${user.time_slots ? `<div class="tag tag-teal" style="padding:6px 10px">⏰ ${escHtml(user.time_slots)}</div>` : ''}
+    </div>
+    <div class="detail-section" style="margin-bottom:20px">
+      <h4>📬 Contact</h4>
+      ${isHidden
+        ? `<div class="contact-box">🔒 This user's contact is hidden. Connect with them to reveal it.</div>`
+        : `<div class="contact-box">${escHtml(user.contact_info || 'Not provided')}</div>`
+      }
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="connectUser('${escHtml(user.name)}');closeDetailModal()">
+      ${type === 'tutor' ? '🎓 Request This Tutor' : '🤝 Become Study Partners'}
+    </button>
+  `;
+  document.getElementById('detailModal').classList.add('open');
+}
+
+function closeDetailModal() { document.getElementById('detailModal').classList.remove('open'); }
+function closeDetail(e) { if (e.target === document.getElementById('detailModal')) closeDetailModal(); }
+
+/* ══ PROFILE TAB ═════════════════════════════════════════════ */
+function renderProfileTab() {
+  if (!currentUser) return;
+  const el = document.getElementById('profileLoggedIn');
+  el.style.display = 'block';
+  document.getElementById('profileGuest').style.display = 'none';
+
+  const u = currentUser;
+  el.innerHTML = `
+    <div style="text-align:center;margin-bottom:28px">
+      ${u.profile_pic ? `<img src="${u.profile_pic}" style="width:80px;height:80px;border-radius:50%;border:3px solid var(--purple);object-fit:cover;margin-bottom:12px"/>` : `<div style="width:80px;height:80px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;margin:0 auto 12px">${(u.name||'?')[0].toUpperCase()}</div>`}
+      <h2 style="font-size:22px">${escHtml(u.name || '')}</h2>
+      <p style="color:var(--text-muted);font-size:14px">${escHtml(u.email || '')}</p>
+      <div style="margin-top:8px">
+        ${u.email_verified
+          ? '<span class="tag tag-green" style="padding:4px 12px">✅ Email Verified</span>'
+          : '<span class="tag tag-amber" style="padding:4px 12px">⚠️ Email Not Verified</span>'}
+      </div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px">
+      <h3 style="margin-bottom:16px;font-size:16px">📋 Study Profile</h3>
+      ${u.subject_id ? `<div style="margin-bottom:10px"><span style="color:var(--text-dim);font-size:12px;font-weight:600;text-transform:uppercase">Subject</span><p style="color:var(--text);margin-top:2px">${escHtml(u.subject_id)}</p></div>` : ''}
+      ${u.intent ? `<div style="margin-bottom:10px"><span style="color:var(--text-dim);font-size:12px;font-weight:600;text-transform:uppercase">Role</span><p style="color:var(--text);margin-top:2px">${u.intent === 'Provider' ? '🎓 Tutor' : '🤝 Student/Learner'}</p></div>` : ''}
+      ${u.bio ? `<div><span style="color:var(--text-dim);font-size:12px;font-weight:600;text-transform:uppercase">Bio</span><p style="color:var(--text-muted);margin-top:2px;line-height:1.6">${escHtml(u.bio)}</p></div>` : '<p style="color:var(--text-dim)">No profile set up yet.</p>'}
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="openProfileSetup()">✏️ Edit Profile</button>
+    <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;margin-top:10px" onclick="signOut()">Sign Out</button>
+  `;
+
+  // Reload profile with data from stored profile
+  const stored = JSON.parse(localStorage.getItem('sc_profile') || 'null');
+  if (stored) {
+    currentUser = { ...currentUser, ...stored };
+    renderProfileTab();
+  }
+}
+
+/* ══ PROFILE SETUP MODAL ═════════════════════════════════════ */
+function openProfileSetup() {
+  if (!currentUser) { triggerGoogleSignIn(); return; }
+  document.getElementById('profileSetup').classList.add('open');
+}
+function closeProfileSetup(e) {
+  if (e.target === document.getElementById('profileSetup')) {
+    document.getElementById('profileSetup').classList.remove('open');
+  }
+}
+
+async function saveProfile() {
+  if (!currentUser) { showAlert('Please sign in first.', 'warn'); return; }
+
+  const profileData = {
+    name:         currentUser.name,
+    subject_id:   document.getElementById('setupSubject').value,
+    intent:       document.getElementById('setupIntent').value,
+    fee_pref:     document.getElementById('setupFee').value,
+    language:     document.getElementById('setupLang').value,
+    advantage:    document.getElementById('setupAdv').value,
+    weakness:     document.getElementById('setupWeak').value,
+    time_slots:   document.getElementById('setupTime').value,
+    bio:          document.getElementById('setupBio').value,
+    contact_info: document.getElementById('setupContact').value,
+    study_mode:   document.getElementById('setupMode').value,
+    privacy_mode: document.getElementById('setupPrivacy').checked,
+    role:         'Student (Peer)',
+    rating:       3.0,
+    email:        currentUser.email,
+  };
+
+  try {
+    const res = await fetch(`${API}/api/add_user`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profileData),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('sc_profile', JSON.stringify(profileData));
+      currentUser = { ...currentUser, ...profileData };
+      localStorage.setItem('sc_user', JSON.stringify(currentUser));
+      document.getElementById('profileSetup').classList.remove('open');
+      renderProfileTab();
+      showAlert('Profile saved! You are now discoverable. 🎉', 'success');
+      loadStats(); loadTutors(); loadPeers();
+    } else {
+      showAlert(data.error || 'Could not save profile.', 'error');
+    }
+  } catch {
+    showAlert('Server error. Is Flask running?', 'error');
+  }
+}
+
+/* ══ UTILS ═══════════════════════════════════════════════════ */
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+
+</body>
+</html>

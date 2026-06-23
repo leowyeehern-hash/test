@@ -18,6 +18,8 @@ pip-delete-this-directory.txt
 
 # Databases and local logs
 *.db
+!students.db
 *.log
 .vscode/
 .idea/
+
